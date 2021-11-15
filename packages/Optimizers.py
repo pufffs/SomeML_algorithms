@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-@author: roone
+@author: pf
 """
 import numpy as np
 from .Kernels import Linear
 from .Regularizers import Regularizer
 
 class Optimizer(object):
-    def __init__(self, X, Y, kernel=Linear, bw=-1, freq=0, deg=0, reg=0, regularizer=Regularizer):
+    def __init__(self, X, Y, kernel=Linear, bw=-1, deg=0, reg=0, regularizer=Regularizer):
         self._Xtr = X
         self._Ytr = Y
         self._reg = reg
@@ -36,8 +36,8 @@ class Optimizer(object):
         pass
 
 class k_Perceptron(Optimizer):
-    def __init__(self, X, Y, kernel=Linear, bw=-1, freq=0, deg=0, reg=0, regularizer=Regularizer):
-        super().__init__(X, Y, kernel, bw, freq, deg, regularizer)
+    def __init__(self, X, Y, kernel=Linear, bw=-1, deg=0, reg=0, regularizer=Regularizer):
+        super().__init__(X, Y, kernel, bw, deg, reg, regularizer)
     
     def predict(self, Xval, alpha=None):
         if alpha is None:
@@ -97,8 +97,8 @@ class k_Perceptron(Optimizer):
         return gradient + reg_grad
 
 class k_SVM(Optimizer):
-    def __init__(self, X, Y, kernel=Linear, bw=-1, freq=0, deg=0, reg=0, regularizer=Regularizer):
-        super().__init__(X, Y, kernel, bw, freq, deg, regularizer)
+    def __init__(self, X, Y, kernel=Linear, bw=-1, deg=0, reg=0, regularizer=Regularizer):
+        super().__init__(X, Y, kernel, bw, deg, reg, regularizer)
     
     def predict(self, Xval, alpha=None):
         if alpha is None:
@@ -161,8 +161,8 @@ class k_SVM(Optimizer):
         return gradient + reg_grad 
 
 class k_Logistic(Optimizer):
-    def __init__(self, X, Y, kernel=Linear, bw=-1, freq=0, deg=0, reg=0, regularizer=Regularizer):
-        super().__init__(X, Y, kernel, bw, freq, deg, regularizer)
+    def __init__(self, X, Y, kernel=Linear, bw=-1, deg=0, reg=0, regularizer=Regularizer):
+        super().__init__(X, Y, kernel, bw, deg, reg, regularizer)
     
     def predict(self, Xval, alpha=None):
         if alpha is None:
@@ -205,8 +205,8 @@ class k_Logistic(Optimizer):
         return np.mean(total_gd, axis=0) + reg_grad
     
 class k_Regression(Optimizer):
-    def __init__(self, X, Y, kernel=Linear, bw=-1, freq=0, deg=0, reg=0, regularizer=Regularizer):
-        super().__init__(X, Y, kernel, bw, freq, deg, regularizer)
+    def __init__(self, X, Y, kernel=Linear, bw=-1, deg=0, reg=0, regularizer=Regularizer):
+        super().__init__(X, Y, kernel, bw, deg, reg, regularizer)
         
     def predict(self, Xval, alpha=None):
         if alpha is None:

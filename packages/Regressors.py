@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue May  4 18:03:57 2021
-
-@author: roone
+@author: pf
 """
 from .Regularizers import Regularizer
 

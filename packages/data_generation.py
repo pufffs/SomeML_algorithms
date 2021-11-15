@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue May  4 18:05:04 2021
-
-@author: roone
+@author: pf
 """
 import numpy as np
 class DG(object):
