@@ -1,6 +1,7 @@
+"""
+pf
+"""
 import numpy as np
-import math
-from .Regularizers import Regularizer
 
 def GD(w0, optimizer, opts=dict()):
     w = w0
@@ -30,44 +31,76 @@ def GD(w0, optimizer, opts=dict()):
         trajectory[i+1] = w
     return trajectory
 
-def CrossVal(x_full, y_full, folds, optimizer, closed_f=False, opts=dict()):
-    """
-    x_full, y_full: Full dataset.
-    
-    folds: the number of folds.
-    
-    optimizer: the function/feature space.
-    
-    opts: some parameters required by the optimizer.
-    """
-    
-    try:
-        x, y = np.split(x_full, folds), np.split(y_full, folds) #split the full dataset into folds, needed to be divided.
-    except:
-        raise
-    error = 0 #total CV error.
-    for i in range(folds):
-        x_ = x[:]
-        y_ = y[:]
-        x_val = x_[i] 
-        y_val = y_[i]
-        x_.pop(i)
-        y_.pop(i)
+class CV(object):
+    def __init__(self, x_full, y_full, folds, optimizer):
+        self.X = x_full
+        self.Y = y_full
+        self.folds = folds
+        self.optimizer = optimizer
+
+    def CrossVal(self, closed_f=False, opts=dict()):
+        """
+        x_full, y_full: Full dataset.
         
-        x_train = np.concatenate(x_) if folds !=1 else x_val
-        y_train = np.concatenate(y_) if folds !=1 else y_val
+        folds: the number of folds.
         
+        optimizer: the function/feature space.
         
-        if closed_f:
-            obj = optimizer(x_train, y_train, opts.get('reg', 0), opts.get('features', 'linear'))
-            error += obj.test_loss(x_val, y_val)
-        else:
-            obj = optimizer(x_train, y_train)
-            w0 = np.random.randn(x_full.shape[1])
-            w_hat = GD(w0, obj)[-1]
-            error += obj.test_loss(x_val, y_val, w_hat)
-    return error / folds
+        opts: some parameters required by the optimizer.
+        """
+
+        x, y = np.array_split(self.X, self.folds), np.array_split(self.Y, self.folds) 
+        error = 0 #total CV error.
+        for i in range(self.folds):
+            x_ = x.copy()
+            y_ = y.copy()
+            x_val = x_[i] 
+            y_val = y_[i]
+            x_.pop(i)
+            y_.pop(i)
+            
+            x_train = np.concatenate(x_) if self.folds !=1 else x_val
+            y_train = np.concatenate(y_) if self.folds !=1 else y_val
+            
+            if closed_f:
+                obj = self.optimizer(x_train, y_train, opts.get('reg', 0), opts.get('features', 'linear'))
+                error += obj.test_loss(x_val, y_val)
+            else:
+                obj = self.optimizer(x_train, y_train)
+                w0 = np.random.randn(self.X.shape[1])
+                w_hat = GD(w0, obj)[-1]
+                error += obj.test_loss(x_val, y_val, w_hat)
+        return error / self.folds
         
+    def Tree_CV(self, opts={}):
+        
+        error_type = opts.get("error_type", "RSS")
+        alpha = opts.get("alpha", 0.)
+        max_depth = opts.get("max_depth", 5)
+        mn = opts.get("mn", 5)
+        
+        x, y = np.array_split(self.X, self.folds), np.array_split(self.Y, self.folds) 
+        error = 0 #total CV error.
+        for i in range(self.folds):
+            x_ = x.copy()
+            y_ = y.copy()
+            x_val = x_[i] 
+            y_val = y_[i]
+            x_.pop(i)
+            y_.pop(i)
+            
+            x_train = np.concatenate(x_) if self.folds !=1 else x_val
+            y_train = np.concatenate(y_) if self.folds !=1 else y_val   
+            
+            obj = self.optimizer(max_depth,mn, alpha)
+            obj.fit(x_train, y_train)
+            pred = obj.predict(x_val)
+        
+            if error_type == "RSS":
+                error += np.sum(np.square(pred-y_val))
+            elif error_type == "Misclassification":
+                error += 1. - ( (pred==y_val).sum() / y_val.size )
+        return error/self.folds
         
         
         
