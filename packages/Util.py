@@ -2,6 +2,7 @@
 pf
 """
 import numpy as np
+from .Trees import ClassifierTree
 
 def GD(w0, optimizer, opts=dict()):
     w = w0
@@ -101,7 +102,84 @@ class CV(object):
             elif error_type == "Misclassification":
                 error += 1. - ( (pred==y_val).sum() / y_val.size )
         return error/self.folds
+    
+class Bootstrap(object):
+    def __init__(self, X, Y, optimizer=ClassifierTree):
+        self.X = X
+        self.Y = Y
+        self.optimizer = optimizer
+        self.n = X.shape[0]
+        self.forests = None
+    
+    def get_boot(self, B=100):
+        boot = []
+        for i in range(B):
+            ind = np.random.choice(np.arange(self.n), self.n, replace=True)
+            obs = self.X[ind]
+            response = self.Y[ind]
+            mat = (response, obs)
+            boot.append(mat)
+        return boot
+    
+    def bagging_fit(self, B=100):
+        self.forests = []
+        boot_data = self.get_boot(B)
+        for mat in boot_data:
+            y, x = mat
+            obj = self.optimizer()
+            obj.fit(x, y)
+            self.forests.append(obj)
+    
+    def tree_predict(self, Xtest, infer_type="Consensus"):
+        models = self.forests
         
+        if infer_type == "Probability": #if probability, end up earlier
+            ag = np.array([model.prob_predict(Xtest) for model in models])
+            ag = np.mean(ag, axis=0) # probability over B bootstrap samples
+            return np.argmax(ag, axis=1) # choose the class with the highest average probability
+        ag = np.array([model.predict(Xtest) for model in models])
+        preds = []
+        if infer_type == "Average": # if regression tree, directly return the average without calling the rest of the codes.
+            return np.mean(ag, axis=0)
+        clss = np.unique(self.Y)
+        for pred in ag.T:
+            counts = np.array([np.sum(pred==i) for i in clss])
+            cls_p = np.argmax(counts)
+            preds.append(cls_p)
+        return np.array(preds)
+        
+    def OOB_error(self, B=100, error_type="Misclassification"): #Out-of-bag error used to estimate the model error,                                          
+        bh = {i:[] for i in np.arange(self.n)}              #similar to 2-fold cross-validation.
+        for i in range(B):
+            ind = np.random.choice(np.arange(self.n), self.n, replace=True)
+            obs = self.X[ind]
+            response = self.Y[ind]
+            obj = self.optimizer()
+            obj.fit(obs, response)
+            for j in np.arange(self.n):
+                if j not in ind:
+                    bh[j].append(obj)
+                    
+        Pred = []    
+        if error_type == "Misclassification":
+            for I in np.arange(self.n):
+                data = np.atleast_2d(self.X[I])
+                ag = np.array([model.predict(data) for model in bh[I]])
+                cls = np.unique(self.Y)
+                counts = np.array([np.sum(ag==i) for i in cls])
+                pp = np.argmax(counts)
+                Pred.append(pp)
+            return np.mean(np.array(Pred) != self.Y)
+        
+        elif error_type == "MSE":
+            for I in np.arange(self.n):
+                data = self.X[I]
+                if bh[I]:
+                    ag = np.array([ model.predict(data) for model in bh[I]])
+                    Pred.append(np.mean(ag))
+            return np.mean(np.square(np.array(Pred)-self.Y))
+        else:
+            return 0.
         
         
         

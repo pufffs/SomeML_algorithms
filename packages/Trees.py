@@ -39,13 +39,14 @@ class DecisionTree(object):
         pass
     
     def predict(self, Xtest):
-        pass
+        Xtest = np.atleast_2d(Xtest) if len(Xtest.shape)==1 else X
     
 class ClassifierTree(DecisionTree):
-    def __init__(self, max_dep, min_node, alpha):
+    def __init__(self, max_dep=5, min_node=5, alpha=0):
         super().__init__(max_dep, min_node, alpha)
         
     def fit(self, X, Y):
+        X = X[:, np.newaxis] if len(X.shape)==1 else X
         self.classes = np.unique(Y)
         super().fit(X, Y)
     
@@ -92,7 +93,10 @@ class ClassifierTree(DecisionTree):
         """
         counts = np.array([np.sum(Y==i) for i in self.classes])
         predict_class = np.argmax(counts) 
+        prob_class = counts / np.sum(counts)
+        
         node = Nodes(predict_class, depth)
+        node.p_class = prob_class
         
         if depth <= self.max_depth and Y.size >= self._mn: #stopping if depth exceeds or datapoints fewer than minimum node.
             col, cut = self.node_split(X, Y)
@@ -110,6 +114,7 @@ class ClassifierTree(DecisionTree):
         return node
     
     def predict(self, Xtest):
+        Xtest = np.atleast_2d(Xtest) if len(Xtest.shape)==1 else Xtest
         predictions = []
         for row in Xtest:
             node = self.tree
@@ -120,9 +125,22 @@ class ClassifierTree(DecisionTree):
                     node = node.right
             predictions.append(node.prediction)
         return np.array(predictions)
+    
+    def prob_predict(self, Xtest): # this returns the probability of 'major vote' class at each node.
+        Xtest = np.atleast_2d(Xtest) if len(Xtest.shape)==1 else Xtest
+        predictions = []
+        for row in Xtest:
+            node = self.tree
+            while node.left:
+                if row[node.feature_col] < node.cut:
+                    node = node.left
+                else: #be cautious here, need to use else to include that node.left is None.
+                    node = node.right
+            predictions.append(node.p_class)
+        return np.array(predictions)
 
 class RegressionTree(DecisionTree):
-    def __init__(self, max_dep, min_node, alpha):
+    def __init__(self, max_dep=5, min_node=5, alpha=0):
         super().__init__(max_dep, min_node, alpha)
     
     def node_split(self, X, Y):
@@ -154,7 +172,18 @@ class RegressionTree(DecisionTree):
                 
                 if temp_X[i] == temp_X[i-1]:
                     continue
-                if (np.log(current_rss) + self.alpha) < np.log(best_rss): #to better include alpha, use log to compare.
+                    
+                #when only one node left, rss will become zero so log is invalid. just take 0 when any of two is 0.    
+                if current_rss :
+                    cr = np.log(current_rss) 
+                else:
+                    cr = current_rss 
+                if best_rss :
+                    br = np.log(best_rss)
+                else:
+                    br = best_rss
+                    
+                if (cr + self.alpha) < br: #to better include alpha, use log to compare.
                     best_rss = current_rss
                     best_feature = col
                     best_cut = (temp_X[i] + temp_X[i-1]) / 2 
@@ -183,6 +212,7 @@ class RegressionTree(DecisionTree):
         return node
     
     def predict(self, Xtest):
+        Xtest = np.atleast_2d(Xtest) if len(Xtest.shape)==1 else Xtest
         predictions = []
         for row in Xtest:
             node = self.tree
